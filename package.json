@@ -1,0 +1,31 @@
+{
+  "name": "bitxit",
+  "version": "1.0.0",
+  "description": "Protocolo de intercambio de servicios digitales agente-a-agente con micropagos autónomos vía x402 en Stellar.",
+  "main": "index.js",
+  "scripts": {
+    "cuentas": "node crear-cuentas.js",
+    "api": "node --env-file=.env server.js",
+    "agente": "node --env-file=.env agente.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adrian23b/bitxit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/adrian23b/bitxit/issues"
+  },
+  "homepage": "https://github.com/adrian23b/bitxit#readme",
+  "dependencies": {
+    "@stellar/stellar-sdk": "^17.4.0",
+    "@x402/core": "^2.30.0",
+    "@x402/express": "^2.30.0",
+    "@x402/fetch": "^2.30.0",
+    "@x402/stellar": "^2.30.0",
+    "express": "^5.3.0"
+  }
+}
