@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bitxit</title>
+<style>
+  :root { --bg:#0e0e0e; --card:#181818; --linea:#2c2c2c; --texto:#eaeaea; --suave:#8a8a8a; --acento:#f5c518; --ok:#4ade80; --mal:#f87171; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--texto); font-family:ui-monospace,Menlo,Consolas,monospace; line-height:1.5; }
+  main { max-width:880px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { margin:0; color:var(--acento); letter-spacing:.04em; }
+  .sub { color:var(--suave); margin:4px 0 24px; }
+  .fila { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+  .dato { flex:1 1 180px; background:var(--card); border:1px solid var(--linea); padding:12px 14px; }
+  .dato small { color:var(--suave); display:block; text-transform:uppercase; font-size:11px; }
+  .dato b { font-size:20px; }
+  h2 { font-size:13px; text-transform:uppercase; color:var(--acento); letter-spacing:.08em; margin:28px 0 10px; }
+  .servicios { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .servicio { background:var(--card); border:1px solid var(--linea); padding:14px; display:flex; flex-direction:column; gap:8px; }
+  .servicio h3 { margin:0; }
+  .servicio p { margin:0; color:var(--suave); font-size:13px; flex:1; }
+  .precio { color:var(--acento); font-weight:bold; }
+  .aviso { color:var(--suave); font-size:12px; }
+  button { background:var(--acento); color:#111; border:0; padding:10px; font:inherit; font-weight:bold; cursor:pointer; }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  pre { background:#050505; border:1px solid var(--linea); padding:12px; white-space:pre-wrap; word-break:break-word; min-height:90px; margin:0; font-size:12px; }
+  ul { list-style:none; padding:0; margin:0; }
+  li { background:var(--card); border:1px solid var(--linea); padding:8px 12px; margin-bottom:6px; font-size:13px; }
+  a { color:var(--acento); }
+  .ok { color:var(--ok); } .mal { color:var(--mal); }
+  #error { color:var(--mal); }
+</style>
+</head>
+<body>
+<main>
+  <h1>bitxit</h1>
+  <p class="sub">Mercado de servicios digitales agente a agente · micropagos x402 en Stellar testnet</p>
+  <p id="error"></p>
+
+  <div class="fila">
+    <div class="dato"><small>Saldo del agente</small><b id="saldo">…</b> <span class="aviso">USDC</span></div>
+    <div class="dato"><small>Tope por compra</small><b id="tope">…</b></div>
+    <div class="dato"><small>Wallet del agente</small><a id="wallet" target="_blank" rel="noopener">…</a></div>
+  </div>
+
+  <h2>Catálogo del proveedor</h2>
+  <div id="servicios" class="servicios"></div>
+  <p class="aviso">Si un servicio cuesta más que el tope, el agente se niega a pagarlo antes de firmar y no se crea ninguna transacción.</p>
+
+  <h2>Qué hizo el agente</h2>
+  <pre id="log">Elige un servicio para que el agente lo compre.</pre>
+
+  <h2>Historial de compras</h2>
+  <ul id="historial"></ul>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const EXPLORER = "https://stellar.expert/explorer/testnet";
+let comprando = false;
+
+function enlace(texto, url) {
+  const a = document.createElement("a");
+  a.textContent = texto; a.href = url; a.target = "_blank"; a.rel = "noopener";
+  return a;
+}
+
+async function cargar() {
+  try {
+    const r = await fetch("/api/estado");
+    const d = await r.json();
+    if (!r.ok) { $("error").textContent = d.error; return; }
+    $("error").textContent = "";
+    $("saldo").textContent = d.saldo.toFixed(2);
+    $("tope").textContent = d.tope;
+    const w = $("wallet");
+    w.textContent = d.agente.slice(0, 6) + "…" + d.agente.slice(-6);
+    w.href = `${EXPLORER}/account/${d.agente}`;
+
+    const cont = $("servicios");
+    cont.replaceChildren();
+    for (const s of d.servicios) {
+      const caja = document.createElement("div");
+      caja.className = "servicio";
+      const t = document.createElement("h3"); t.textContent = s.id;
+      const p = document.createElement("p"); p.textContent = s.descripcion;
+      const pr = document.createElement("div"); pr.className = "precio"; pr.textContent = s.precio + " USDC";
+      const b = document.createElement("button");
+      b.textContent = "Que el agente lo compre";
+      b.disabled = comprando;
+      b.onclick = () => comprar(s.id);
+      caja.append(t, p, pr, b);
+      cont.append(caja);
+    }
+
+    const ul = $("historial");
+    ul.replaceChildren();
+    if (!d.historial.length) { const li = document.createElement("li"); li.textContent = "Todavía no hay compras."; ul.append(li); }
+    for (const h of d.historial) {
+      const li = document.createElement("li");
+      const marca = document.createElement("span");
+      marca.className = h.ok ? "ok" : "mal";
+      marca.textContent = h.ok ? "✅ " : "⛔ ";
+      li.append(marca, `${h.id} · ${new Date(h.hora).toLocaleTimeString()} · `);
+      if (h.hash) li.append(enlace("ver pago", `${EXPLORER}/tx/${h.hash}`));
+      else li.append(h.ok ? "sin hash" : "rechazado o fallido, sin pago");
+      ul.append(li);
+    }
+  } catch {
+    $("error").textContent = "No se pudo conectar con el panel.";
+  }
+}
+
+async function comprar(id) {
+  comprando = true;
+  document.querySelectorAll("button").forEach((b) => (b.disabled = true));
+  $("log").textContent = `El agente está comprando "${id}"…`;
+  try {
+    const r = await fetch("/api/comprar", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const d = await r.json();
+    $("log").textContent = d.error ? d.error : d.salida;
+  } catch {
+    $("log").textContent = "No se pudo contactar al panel.";
+  }
+  comprando = false;
+  await cargar();
+}
+
+cargar();
+</script>
+</body>
+</html>
