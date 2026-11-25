@@ -6,7 +6,8 @@
   "scripts": {
     "cuentas": "node crear-cuentas.js",
     "api": "node --env-file=.env server.js",
-    "agente": "node --env-file=.env agente.js"
+    "agente": "node --env-file=.env agente.js",
+    "web": "node --env-file=.env web.js"
   },
   "repository": {
     "type": "git",
